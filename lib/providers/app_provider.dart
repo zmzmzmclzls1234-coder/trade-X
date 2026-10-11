@@ -3,10 +3,15 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/stock.dart';
 import '../models/user.dart';
+import '../models/quest.dart';
 import '../models/alert_notification.dart';
+import '../models/market_reopen_summary.dart';
 import '../services/database_service.dart';
 import '../services/market_data_service.dart';
 import '../services/alert_service.dart';
+import '../services/company_repository.dart';
+import '../services/quest_service.dart';
+import '../services/market_reopen_service.dart';
 import '../i18n/translations.dart';
 
 class AppProvider with ChangeNotifier {
@@ -83,6 +88,7 @@ class AppProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      await CompanyRepository.instance.initialize();
       final prefs = await SharedPreferences.getInstance();
       _hasCompletedOnboarding = prefs.getBool(_onboardingKey) ?? false;
 
@@ -100,15 +106,12 @@ class AppProvider with ChangeNotifier {
       }
 
       await AlertService.instance.init();
+      await MarketReopenService.instance.init();
+      await QuestService.instance.initialize();
       _isCheckingOnboarding = false;
       _rates = await MarketDataService.fetchCurrencyRates();
       await refreshData();
       startPolling();
-
-      // Start background hourly alert monitoring for owned stocks
-      AlertService.instance.startHourlyMonitoring(onTrigger: () {
-        triggerHourlyAlert(forceTest: false);
-      });
     } catch (e) {
       debugPrint('AppProvider init error: $e');
       _isCheckingOnboarding = false;
@@ -159,8 +162,8 @@ class AppProvider with ChangeNotifier {
     _apiPollTimer?.cancel();
     _secondsTicker?.cancel();
 
-    // 1-second elapsed counter for UI freshness display
-    _secondsTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+    // 5-second elapsed counter for UI freshness display to prevent CPU/rebuild thrashing
+    _secondsTicker = Timer.periodic(const Duration(seconds: 5), (_) {
       _secondsSinceLastFetch = DateTime.now().difference(_lastApiFetchTime).inSeconds;
       notifyListeners();
     });
@@ -215,6 +218,34 @@ class AppProvider with ChangeNotifier {
     }
   }
 
+  // Market Reopen Summary ("While You Were Away")
+  bool get marketReopenEnabled => MarketReopenService.instance.isEnabled;
+
+  Future<void> toggleMarketReopen(bool enabled) async {
+    await MarketReopenService.instance.setEnabled(enabled);
+    await AlertService.instance.setEnabled(enabled);
+    notifyListeners();
+  }
+
+  Future<MarketReopenSummary?> evaluateMarketSummary({bool force = false}) async {
+    return await MarketReopenService.instance.evaluateSummary(
+      user: _user,
+      currentQuotes: _quotes,
+      rates: _rates,
+      language: _activeLanguage,
+      force: force,
+    );
+  }
+
+  Future<void> acknowledgeMarketSummary() async {
+    await MarketReopenService.instance.acknowledgeSummary(_user, _quotes, _rates);
+    notifyListeners();
+  }
+
+  Future<void> recordAppPaused() async {
+    await MarketReopenService.instance.recordAppPaused(_user, _quotes, _rates);
+  }
+
   // Trigger Hourly Portfolio Alert (either automatic or manual test)
   Future<List<AlertNotification>> triggerHourlyAlert({bool forceTest = false}) async {
     final results = await AlertService.instance.checkPortfolioAlerts(
@@ -229,8 +260,7 @@ class AppProvider with ChangeNotifier {
   }
 
   Future<void> toggleHourlyAlerts(bool enabled) async {
-    await AlertService.instance.setEnabled(enabled);
-    notifyListeners();
+    await toggleMarketReopen(enabled);
   }
 
   Future<void> clearAlerts() async {
@@ -394,7 +424,39 @@ class AppProvider with ChangeNotifier {
     );
     _transactions = [];
     await clearAlerts();
+    await QuestService.instance.resetQuests();
     await refreshData();
+    notifyListeners();
+  }
+
+  // Quest System Integration
+  List<QuestItem> get quests => QuestService.instance.evaluateQuests(
+        user: _user,
+        transactions: _transactions,
+        totalPortfolioValueUSD: totalPortfolioValueUSD,
+        rates: _rates,
+      );
+
+  QuestStreakState get questStreak => QuestService.instance.streakState;
+
+  int get claimableQuestsCount => quests.where((q) => q.canClaim).length;
+
+  Future<({bool success, int rewardKRW, String message})> claimQuestReward(String questId) async {
+    final result = await QuestService.instance.claimReward(
+      questId: questId,
+      user: _user,
+      activeQuests: quests,
+      rates: _rates,
+    );
+    if (result.success) {
+      _user = result.updatedUser;
+      notifyListeners();
+    }
+    return (success: result.success, rewardKRW: result.rewardKRW, message: result.message);
+  }
+
+  void recordQuestDailyAction(String tag) {
+    QuestService.instance.recordDailyAction(tag);
     notifyListeners();
   }
 

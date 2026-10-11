@@ -23,7 +23,7 @@ class NotificationService {
       _hasPromptedPermission = prefs.getBool(_prefPermissionRequested) ?? false;
       _isPermissionGranted = prefs.getBool(_prefPermissionGranted) ?? false;
 
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
         final enabled = await areNotificationsEnabled();
         _isPermissionGranted = enabled;
         await prefs.setBool(_prefPermissionGranted, enabled);
@@ -35,7 +35,7 @@ class NotificationService {
 
   // Check if system notifications are currently enabled on the device
   Future<bool> areNotificationsEnabled() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
       return true;
     }
     try {
@@ -47,9 +47,9 @@ class NotificationService {
     }
   }
 
-  // Request Android 13+ POST_NOTIFICATIONS runtime permission appropriately
+  // Request Android / iOS runtime permission appropriately
   Future<bool> requestNotificationPermission() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
       return true;
     }
     try {
@@ -85,7 +85,7 @@ class NotificationService {
     }
   }
 
-  // Send a REAL Android phone system notification
+  // Send a REAL Android / iOS phone system notification
   Future<bool> showSystemNotification({
     required String title,
     required String body,
@@ -93,8 +93,8 @@ class NotificationService {
     int id = 1001,
   }) async {
     debugPrint('[NotificationService] Sending REAL system notification: $title - $body');
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
-      debugPrint('[NotificationService] Skipped system notification (not Android): $title');
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
+      debugPrint('[NotificationService] Skipped system notification (not Android/iOS): $title');
       return true;
     }
 
@@ -112,14 +112,14 @@ class NotificationService {
     }
   }
 
-  // Schedule background hourly notifications via Android AlarmManager
+  // Schedule background hourly notifications via system notification services
   Future<bool> scheduleHourlyNotification({
     required String title,
     required String body,
     String? details,
     int intervalMinutes = 60,
   }) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
       return true;
     }
 
@@ -140,7 +140,7 @@ class NotificationService {
 
   // Cancel scheduled background alarms and active notifications
   Future<bool> cancelNotifications() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
       return true;
     }
 

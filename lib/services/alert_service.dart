@@ -110,13 +110,8 @@ class AlertService {
   void startHourlyMonitoring({
     required Function() onTrigger,
   }) {
-    _hourlyTimer?.cancel();
-    // Run every 1 hour (3600 seconds)
-    _hourlyTimer = Timer.periodic(const Duration(hours: 1), (_) {
-      if (_isEnabled) {
-        onTrigger();
-      }
-    });
+    // Replaced by App Reopen Market Summary ("While You Were Away")
+    // Recurring polling timer removed to avoid unnecessary background battery drain
   }
 
   void dispose() {

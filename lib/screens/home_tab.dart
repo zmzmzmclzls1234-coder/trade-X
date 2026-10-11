@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 import '../models/stock.dart';
 import '../providers/app_provider.dart';
 import '../services/market_data_service.dart';
+import '../services/company_repository.dart';
 import '../i18n/translations.dart';
 import 'stock_detail_screen.dart';
 import 'transactions_screen.dart';
 import 'leaderboard_screen.dart';
+import 'quests_screen.dart';
 
 class HomeTab extends StatelessWidget {
   const HomeTab({super.key});
@@ -22,8 +24,8 @@ class HomeTab extends StatelessWidget {
     final totalReturnPct = provider.totalReturnPercent;
     final isProfit = totalProfitLossUSD >= 0;
 
-    // Featured stocks
-    final featuredTickers = ['005930.KS', 'NVDA', 'AAPL', '000660.KS', 'TSLA', 'MSFT', '7203.T'];
+    // Featured global (US, UK, DE, FR, KR, JP) market leading stocks
+    final featuredTickers = ['MC.PA', 'NVDA', 'AZN.L', 'SAP.DE', '7203.T', '005930.KS', 'OR.PA', 'AAPL', 'SHEL.L', 'SIE.DE', '6758.T', '000660.KS', 'MSFT', '7974.T', 'AMZN', '005380.KS', 'TSLA'];
 
     return RefreshIndicator(
       color: const Color(0xFF10B981),
@@ -277,7 +279,7 @@ class HomeTab extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildShortcutButton(
                     context,
@@ -286,6 +288,19 @@ class HomeTab extends StatelessWidget {
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildShortcutButton(
+                    context,
+                    icon: Icons.task_alt,
+                    label: AppTranslations.get('quests', lang),
+                    badgeCount: provider.claimableQuestsCount,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const QuestsScreen()),
                     ),
                   ),
                 ),
@@ -317,14 +332,14 @@ class HomeTab extends StatelessWidget {
               itemBuilder: (context, index) {
                 final ticker = featuredTickers[index];
                 final quote = provider.getQuote(ticker);
-                final sec = MarketDataService.securities.firstWhere(
+                final sec = CompanyRepository.instance.findCompany(ticker) ?? MarketDataService.securities.firstWhere(
                   (s) => s.ticker == ticker,
                   orElse: () => StockSecurity(
                     ticker: ticker,
                     name: quote.name.isNotEmpty ? quote.name : ticker,
-                    country: 'US',
-                    countryName: 'US',
-                    exchange: 'NYSE',
+                    country: ticker.contains('.KS') || ticker.contains('.KQ') ? 'KR' : 'US',
+                    countryName: ticker.contains('.KS') || ticker.contains('.KQ') ? 'South Korea' : 'United States',
+                    exchange: ticker.contains('.KS') ? 'KOSPI' : (ticker.contains('.KQ') ? 'KOSDAQ' : 'NASDAQ'),
                     sector: 'Tech',
                     marketCapCategory: 'Large Cap',
                     currency: quote.currency,
@@ -371,7 +386,7 @@ class HomeTab extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                sec.name,
+                                sec.localName ?? sec.name,
                                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                 overflow: TextOverflow.ellipsis,
                                 maxLines: 1,
@@ -390,7 +405,9 @@ class HomeTab extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              hasPrice ? '$formattedPrice ${quote.currency}' : '—',
+                              hasPrice
+                                  ? '${quote.currency == "GBP" ? "£" : (quote.currency == "EUR" ? "€" : (quote.currency == "USD" ? "\$" : (quote.currency == "JPY" ? "¥" : "₩")))}$formattedPrice'
+                                  : '—',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
@@ -421,29 +438,43 @@ class HomeTab extends StatelessWidget {
     );
   }
 
-  Widget _buildShortcutButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap}) {
+  Widget _buildShortcutButton(BuildContext context, {required IconData icon, required String label, required VoidCallback onTap, int badgeCount = 0}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFF0F172A),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF1E293B)),
+          border: Border.all(color: badgeCount > 0 ? const Color(0xFF10B981).withOpacity(0.5) : const Color(0xFF1E293B)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: const Color(0xFF10B981), size: 18),
-            const SizedBox(width: 6),
+            Icon(icon, color: const Color(0xFF10B981), size: 17),
+            const SizedBox(width: 5),
             Flexible(
               child: Text(
                 label,
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (badgeCount > 0) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
           ],
         ),
       ),

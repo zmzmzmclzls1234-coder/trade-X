@@ -6,6 +6,7 @@ import '../models/news_video.dart';
 import '../providers/app_provider.dart';
 import '../services/market_data_service.dart';
 import '../services/news_service.dart';
+import '../services/company_repository.dart';
 import '../data/securities_data.dart';
 import '../i18n/translations.dart';
 import 'news_card.dart';
@@ -38,21 +39,30 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _refreshAll();
+    _loadDataPrioritized();
+  }
+
+  void _loadDataPrioritized() {
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    // 1. Immediately request fresh quote in background (cached is already displayed at 0ms)
+    provider.fetchQuoteForTicker(widget.quote.ticker);
+    // 2. Load chart data for selected timeframe
+    _loadChartData();
+    // 3. Load company news independently in background
+    _loadCompanyNews();
   }
 
   Future<void> _refreshAll() async {
     if (!mounted) return;
     setState(() => _isRefreshing = true);
     final provider = Provider.of<AppProvider>(context, listen: false);
-    await Future.wait([
-      provider.fetchQuoteForTicker(widget.quote.ticker),
-      _loadChartData(),
-      _loadCompanyNews(forceRefresh: true),
-    ]);
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-    }
+    
+    // Refresh price first, then trigger chart and news in parallel without blocking price
+    provider.fetchQuoteForTicker(widget.quote.ticker).then((_) {
+      if (mounted) setState(() => _isRefreshing = false);
+    });
+    _loadChartData();
+    _loadCompanyNews(forceRefresh: true);
   }
 
   Future<void> _loadCompanyNews({bool forceRefresh = false}) async {
@@ -62,13 +72,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final lang = provider.activeLanguage;
     final selectedCountry = provider.user?.country ?? 'KR';
 
-    // Look up localName from securities directory to improve search and relevance matching
-    String? localName;
+    // Look up localName from CompanyRepository or securities directory
+    final repoSec = CompanyRepository.instance.findCompany(widget.quote.ticker);
+    String? localName = repoSec?.localName;
 
-    for (final sec in allSecuritiesDirectory) {
-      if (sec.ticker == widget.quote.ticker) {
-        localName = sec.localName;
-        break;
+    if (localName == null || localName.isEmpty) {
+      for (final sec in allSecuritiesDirectory) {
+        if (sec.ticker == widget.quote.ticker) {
+          localName = sec.localName;
+          break;
+        }
       }
     }
 
@@ -243,6 +256,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final canSell = ownedShares > 0 && _shares > 0 && _shares <= ownedShares;
     final cashAfterSellUSD = availableCashUSD + totalProceedsUSD;
 
+    final sec = CompanyRepository.instance.findCompany(widget.quote.ticker);
+    final displayName = sec?.localName ?? (liveQuote.name.isNotEmpty ? liveQuote.name : liveQuote.ticker);
+
     return Scaffold(
       backgroundColor: const Color(0xFF090D16),
       appBar: AppBar(
@@ -257,7 +273,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              liveQuote.name.isNotEmpty ? liveQuote.name : liveQuote.ticker,
+              displayName,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
@@ -268,6 +284,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   liveQuote.ticker,
                   style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontFamily: 'monospace', fontWeight: FontWeight.bold),
                 ),
+                if (sec != null && sec.exchange.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E293B),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      sec.exchange,
+                      style: const TextStyle(fontSize: 9, color: Color(0xFF38BDF8), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 6),
                 Text(
                   '• ${liveQuote.currency}',
@@ -955,7 +985,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 5. Key Market Statistics (Mobile Safe Grid)
+              // 5. Company Information & Key Statistics
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -966,32 +996,69 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      AppTranslations.get('keyStats', lang),
-                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          lang == 'ko' ? '기업 정보 및 주요 지표' : AppTranslations.get('keyStats', lang),
+                          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            sec?.listingStatus ?? 'LISTED',
+                            style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 12),
+                    if (sec?.localName != null && sec!.localName != sec.name)
+                      _buildStatRow(
+                        sec.country == 'GB'
+                            ? (lang == 'ko' ? '영국 현지 기업명' : 'UK Local Name')
+                            : (sec.country == 'DE'
+                                ? (lang == 'ko' ? '독일 현지 기업명' : 'German Name')
+                                : (sec.country == 'JP'
+                                    ? (lang == 'ko' ? '일본 현지 기업명' : 'Japanese Name')
+                                    : (lang == 'ko' ? '한글 기업명' : 'Local Name'))),
+                        sec.localName!,
+                      ),
+                    if (sec?.name != null && sec!.name.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '영문 기업명' : 'English Name', sec.name),
+                    _buildStatRow(
+                      lang == 'ko' ? '종목코드 / 티커' : 'Symbol / Ticker',
+                      sec?.code != null ? '${sec!.code} (${liveQuote.ticker})' : liveQuote.ticker,
+                    ),
+                    if (sec?.isin != null && sec!.isin!.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '국제표준코드 (ISIN)' : 'ISIN Code', sec.isin!),
+                    _buildStatRow(
+                      lang == 'ko' ? '상장 거래소' : AppTranslations.get('exchange', lang),
+                      sec?.exchange ?? (liveQuote.ticker.contains('.KS') ? 'KOSPI' : (liveQuote.ticker.contains('.KQ') ? 'KOSDAQ' : 'KRX')),
+                    ),
+                    if (sec?.sector != null && sec!.sector.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '업종 분류' : 'Sector', sec.sector),
+                    if (sec?.industry != null && sec!.industry!.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '주요 사업' : 'Industry', sec.industry!),
+                    if (sec?.marketCap != null && sec!.marketCap! > 0)
+                      _buildStatRow(lang == 'ko' ? '시가총액' : 'Market Cap', _formatMarketCap(sec.marketCap, sec.currency, lang)),
                     _buildStatRow(
                       AppTranslations.get('previousClose', lang),
-                      '${liveQuote.previousClose?.toStringAsFixed(2) ?? '-'} ${liveQuote.currency}',
-                    ),
-                    _buildStatRow(
-                      AppTranslations.get('exchange', lang),
-                      liveQuote.ticker.contains('.KS')
-                          ? 'KOSPI'
-                          : (liveQuote.ticker.contains('.T')
-                              ? 'Tokyo (TSE)'
-                              : (liveQuote.ticker.contains('.DE')
-                                  ? 'XETRA'
-                                  : (liveQuote.ticker.contains('.L')
-                                      ? 'LSE'
-                                      : (liveQuote.ticker.contains('.PA') ? 'Euronext' : 'NYSE/NASDAQ')))),
+                      liveQuote.previousClose != null ? '${provider.formatStockPrice(liveQuote.previousClose, liveQuote.currency)} ${liveQuote.currency}' : '—',
                     ),
                     _buildStatRow(AppTranslations.get('currency', lang), liveQuote.currency),
                     _buildStatRow(
                       AppTranslations.get('volume', lang),
-                      liveQuote.volume != null ? liveQuote.volume.toString() : '2,450,000',
+                      liveQuote.volume != null ? '${liveQuote.volume} ${lang == "ko" ? "주" : "shares"}' : '—',
                     ),
+                    if (sec?.representative != null && sec!.representative!.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '대표자' : 'CEO', sec.representative!),
+                    if (sec?.listingDate != null && sec!.listingDate!.isNotEmpty)
+                      _buildStatRow(lang == 'ko' ? '상장일' : 'Listing Date', sec.listingDate!),
                     _buildStatRow(
                       AppTranslations.get('marketState', lang),
                       liveQuote.marketState == 'REGULAR'
@@ -1130,6 +1197,46 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       case 'en':
       default:
         return 'No related videos available';
+    }
+  }
+
+  String _formatMarketCap(double? cap, String currency, String lang) {
+    if (cap == null || cap <= 0) return '—';
+    if (currency.toUpperCase() == 'USD') {
+      if (cap >= 1000000000000) {
+        return '\$${(cap / 1000000000000).toStringAsFixed(2)}T';
+      } else if (cap >= 1000000000) {
+        return '\$${(cap / 1000000000).toStringAsFixed(1)}B';
+      } else if (cap >= 1000000) {
+        return '\$${(cap / 1000000).toStringAsFixed(0)}M';
+      }
+      return '\$${cap.toStringAsFixed(0)}';
+    } else if (currency.toUpperCase() == 'JPY') {
+      if (cap >= 1000000000000) {
+        final trillions = cap / 1000000000000;
+        return lang == 'ko'
+            ? '${trillions.toStringAsFixed(1)}조엔'
+            : '¥${trillions.toStringAsFixed(1)}T';
+      } else if (cap >= 100000000) {
+        final billions = cap / 100000000;
+        return lang == 'ko'
+            ? '${billions.toStringAsFixed(0)}억엔'
+            : '¥${billions.toStringAsFixed(0)}00M';
+      }
+      return '¥${cap.toStringAsFixed(0)}';
+    } else {
+      if (cap >= 1000000000000) {
+        final trillions = cap / 1000000000000;
+        return lang == 'ko'
+            ? '${trillions.toStringAsFixed(1)}조원'
+            : '${trillions.toStringAsFixed(1)}T KRW';
+      } else if (cap >= 100000000) {
+        final billions = cap / 100000000;
+        return lang == 'ko'
+            ? '${billions.toStringAsFixed(0)}억원'
+            : '${billions.toStringAsFixed(0)}00M KRW';
+      }
+      return cap.toStringAsFixed(0);
     }
   }
 

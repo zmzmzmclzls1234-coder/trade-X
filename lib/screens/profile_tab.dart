@@ -6,6 +6,8 @@ import 'transactions_screen.dart';
 import 'leaderboard_screen.dart';
 import 'watchlist_tab.dart';
 import 'currency_exchange_screen.dart';
+import 'quests_screen.dart';
+import 'market_reopen_dialog.dart';
 import '../services/notification_service.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -413,45 +415,21 @@ class ProfileTab extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
                         onPressed: () async {
-                          final enabled = await NotificationService.instance.areNotificationsEnabled();
-                          if (!enabled) {
-                            await NotificationService.instance.requestNotificationPermission();
-                          }
-                          final newAlerts = await provider.triggerHourlyAlert(forceTest: true);
-                          if (context.mounted) {
-                            if (newAlerts.isNotEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Row(
-                                    children: [
-                                      const Icon(Icons.notifications_active, color: Colors.white, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          lang == 'ko'
-                                              ? '휴대폰 상단바에 실제 시스템 알림을 전송했습니다!'
-                                              : 'Real system notification sent to your phone!',
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  backgroundColor: const Color(0xFF10B981),
-                                  duration: const Duration(seconds: 4),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(AppTranslations.get('noHoldings', lang)),
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                            }
+                          final summary = await provider.evaluateMarketSummary(force: true);
+                          if (context.mounted && summary != null) {
+                            MarketReopenDialog.show(context, summary);
+                          } else if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(AppTranslations.get('noSignificantChanges', lang)),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
                           }
                         },
-                        icon: const Icon(Icons.send_outlined, size: 14, color: Color(0xFF38BDF8)),
+                        icon: const Icon(Icons.insights, size: 14, color: Color(0xFF38BDF8)),
                         label: Text(
-                          AppTranslations.get('testAlert', lang),
+                          AppTranslations.get('previewSummary', lang),
                           style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11),
                         ),
                       ),
@@ -530,6 +508,21 @@ class ProfileTab extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+                    );
+                  },
+                ),
+                const Divider(height: 1, color: Color(0xFF1E293B)),
+                _buildActionTile(
+                  icon: Icons.task_alt,
+                  iconColor: const Color(0xFF10B981),
+                  title: AppTranslations.get('quests', lang),
+                  subtitle: provider.claimableQuestsCount > 0
+                      ? '${provider.claimableQuestsCount} ready to claim'
+                      : '${provider.questStreak.currentStreak}d streak',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const QuestsScreen()),
                     );
                   },
                 ),

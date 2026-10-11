@@ -89,23 +89,52 @@ class AppTranslations {
       'aiDisclaimer': 'AI Assistant provides educational information only and does not execute trades or guarantee profits.',
       'aiWelcomeMessage': 'Hello! I am your AI Stock & Portfolio Assistant. I can analyze your active holdings, evaluate your portfolio diversification, explain financial terms, and guide your virtual trading journey.',
 
-      // Hourly Stock Portfolio Alerts
+      // Hourly Stock Portfolio Alerts & Reopen Market Summary
       'notifications': 'Notifications & Alerts',
-      'hourlyAlerts': 'Hourly Stock Alerts',
-      'hourlyAlertsDesc': 'Performance notifications for your owned stocks every 1 hour',
-      'testAlert': 'Send Test Alert Now',
+      'hourlyAlerts': 'Market Reopen Summary',
+      'hourlyAlertsDesc': 'Concise summary of portfolio & stock movements while you were away',
+      'testAlert': 'Preview Market Summary',
       'alertHistory': 'Alert History',
       'noAlertsYet': 'No alerts generated yet',
-      'testAlertSuccess': 'Portfolio alert generated for your holdings!',
+      'testAlertSuccess': 'Market summary generated!',
       'clearAlerts': 'Clear Alerts',
-      'alertsEnabled': 'Hourly Alerts Enabled',
-      'alertsDisabled': 'Hourly Alerts Disabled',
+      'alertsEnabled': 'Market Reopen Summary Enabled',
+      'alertsDisabled': 'Market Reopen Summary Disabled',
+
+      // App Reopen Market Summary ("While You Were Away")
+      'whileYouWereAway': 'While You Were Away',
+      'marketReopenSummary': 'Market Reopen Summary',
+      'marketReopenSummaryDesc': 'Concise summary of portfolio & stock movements while you were away',
+      'portfolioChanges': 'Portfolio Value Changes',
+      'trackedMovers': 'Tracked Stock Movers',
+      'recentNewsWhileAway': 'Recent Company News',
+      'noSignificantChanges': 'No significant price changes were detected across your tracked stocks while you were away.',
+      'marketClosedNotice': 'Some markets are currently closed; latest available closing prices are displayed.',
+      'previewSummary': 'Preview Market Summary',
 
       // Currency Exchange Window
       'currencyExchangeTitle': 'Currency Exchange Rates',
       'currencyExchangeSubtitle': 'Real-time foreign exchange market rates',
       'selectBaseCurrency': 'Select Base Currency',
       'searchCurrencyPlaceholder': 'Search currency code or name...',
+
+      // Quests System
+      'quests': 'Investment Quests',
+      'questsSubtitle': 'Complete milestones & earn virtual cash rewards',
+      'claimReward': 'Claim Reward',
+      'claimed': 'Claimed',
+      'inProgress': 'In Progress',
+      'completed': 'Completed',
+      'currentStreak': 'Day Streak',
+      'longestStreak': 'Best Streak',
+      'totalClaimed': 'Total Earned',
+      'claimHistory': 'Claim History',
+      'noClaimHistory': 'No claimed rewards yet',
+      'allQuests': 'All',
+      'profitQuests': 'Profit',
+      'portfolioQuests': 'Portfolio',
+      'dailyQuests': 'Daily & Streaks',
+      'rewardVirtualNotice': 'Quest rewards are virtual KRW added to your simulation cash balance.',
 
       // Watchlist Screen
       'emptyWatchlist': 'Your Watchlist is Empty',
@@ -276,23 +305,52 @@ class AppTranslations {
       'aiDisclaimer': 'AI 어시스턴트는 교육용 정보만 제공하며, 자동 매매를 수행하거나 수익을 보장하지 않습니다.',
       'aiWelcomeMessage': '안녕하세요! AI 주식 및 포트폴리오 어시스턴트입니다. 현재 보유 자산 분석, 분산투자 상태 진단, 금융 용어 설명 등 모의투자에 필요한 지식을 도와드립니다.',
 
-      // Hourly Stock Portfolio Alerts
+      // Hourly Stock Portfolio Alerts & Reopen Market Summary
       'notifications': '알림 및 모니터링',
-      'hourlyAlerts': '시간별 주식 알림',
-      'hourlyAlertsDesc': '보유 중인 주식의 수익률 변동을 1시간마다 알림으로 수신합니다',
-      'testAlert': '지금 테스트 알림 발송',
+      'hourlyAlerts': '부재 중 시장 요약',
+      'hourlyAlertsDesc': '앱에 다시 접속했을 때 부재 중 발생한 포트폴리오 및 관심 종목의 주요 변동을 요약합니다',
+      'testAlert': '시장 요약 미리보기',
       'alertHistory': '알림 내역',
       'noAlertsYet': '아직 생성된 알림이 없습니다',
-      'testAlertSuccess': '보유 주식에 대한 포트폴리오 알림이 생성되었습니다!',
+      'testAlertSuccess': '시장 요약이 생성되었습니다!',
       'clearAlerts': '알림 내역 지우기',
-      'alertsEnabled': '시간별 알림 활성화됨',
-      'alertsDisabled': '시간별 알림 비활성화됨',
+      'alertsEnabled': '부재 중 시장 요약 활성화됨',
+      'alertsDisabled': '부재 중 시장 요약 비활성화됨',
+
+      // App Reopen Market Summary ("While You Were Away")
+      'whileYouWereAway': '부재 중 시장 요약',
+      'marketReopenSummary': '부재 중 시장 요약',
+      'marketReopenSummaryDesc': '앱에 다시 접속했을 때 부재 중 발생한 포트폴리오 및 관심 종목의 주요 변동을 요약합니다',
+      'portfolioChanges': '포트폴리오 자산 변동',
+      'trackedMovers': '보유 및 관심 종목 변동',
+      'recentNewsWhileAway': '부재 중 주요 뉴스',
+      'noSignificantChanges': '부재 중 보유 및 관심 종목에 유의미한 큰 시세 변동이 감지되지 않았습니다.',
+      'marketClosedNotice': '일부 시장이 현재 휴장 상태이며, 최근 종가가 표시됩니다.',
+      'previewSummary': '시장 요약 미리보기',
 
       // Currency Exchange Window
       'currencyExchangeTitle': '실시간 환율 정보',
       'currencyExchangeSubtitle': '글로벌 외환 시장 실시간 환율 및 변환',
       'selectBaseCurrency': '기준 통화 선택',
       'searchCurrencyPlaceholder': '통화 코드 또는 이름 검색...',
+
+      // Quests System
+      'quests': '투자 퀘스트',
+      'questsSubtitle': '투자 목표를 달성하고 모의 현금 보상을 받으세요',
+      'claimReward': '보상 받기',
+      'claimed': '수령 완료',
+      'inProgress': '진행 중',
+      'completed': '달성 완료',
+      'currentStreak': '일 연속 달성',
+      'longestStreak': '최고 연속',
+      'totalClaimed': '총 누적 보상',
+      'claimHistory': '보상 수령 내역',
+      'noClaimHistory': '아직 수령한 보상이 없습니다',
+      'allQuests': '전체',
+      'profitQuests': '수익 달성',
+      'portfolioQuests': '자산 성장',
+      'dailyQuests': '일일 & 연속',
+      'rewardVirtualNotice': '퀘스트 보상은 가상 모의 현금으로 잔고에 즉시 지급됩니다.',
 
       // Watchlist Screen
       'emptyWatchlist': '관심종목이 비어 있습니다',

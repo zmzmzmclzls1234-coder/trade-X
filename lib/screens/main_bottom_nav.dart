@@ -9,6 +9,7 @@ import 'news_tab.dart';
 import 'portfolio_tab.dart';
 import 'ai_agent_tab.dart';
 import 'profile_tab.dart';
+import 'market_reopen_dialog.dart';
 
 class MainBottomNavScreen extends StatefulWidget {
   const MainBottomNavScreen({super.key});
@@ -17,7 +18,7 @@ class MainBottomNavScreen extends StatefulWidget {
   State<MainBottomNavScreen> createState() => _MainBottomNavScreenState();
 }
 
-class _MainBottomNavScreenState extends State<MainBottomNavScreen> {
+class _MainBottomNavScreenState extends State<MainBottomNavScreen> with WidgetsBindingObserver {
   int _currentIndex = 0;
 
   final List<Widget> _tabs = const [
@@ -32,9 +33,36 @@ class _MainBottomNavScreenState extends State<MainBottomNavScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkNotificationPermissionPrompt();
+      _checkReopenSummary();
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    if (state == AppLifecycleState.paused) {
+      provider.recordAppPaused();
+    } else if (state == AppLifecycleState.resumed) {
+      _checkReopenSummary();
+    }
+  }
+
+  Future<void> _checkReopenSummary() async {
+    if (!mounted) return;
+    final provider = Provider.of<AppProvider>(context, listen: false);
+    final summary = await provider.evaluateMarketSummary(force: false);
+    if (summary != null && mounted) {
+      MarketReopenDialog.show(context, summary);
+    }
   }
 
   Future<void> _checkNotificationPermissionPrompt() async {
@@ -48,7 +76,7 @@ class _MainBottomNavScreenState extends State<MainBottomNavScreen> {
     final title = lang == 'ko' ? 'Trade X — 시간별 포트폴리오 알림' : 'Trade X — Hourly Portfolio Updates';
     final desc = lang == 'ko'
         ? '보유 주식의 실제 1시간 변동 내역 및 중요한 가격 알림을 휴대폰 시스템 알림으로 받아보시겠습니까?'
-        : 'Would you like to receive real hourly summaries of your stock movements and portfolio changes as Android system notifications?';
+        : 'Would you like to receive real hourly summaries of your stock movements and portfolio changes as phone system notifications?';
     final allowText = lang == 'ko' ? '알림 켜기' : 'Enable';
     final laterText = lang == 'ko' ? '나중에' : 'Not Now';
 

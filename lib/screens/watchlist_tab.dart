@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../models/stock.dart';
 import '../services/market_data_service.dart';
+import '../services/company_repository.dart';
 import '../i18n/translations.dart';
 import 'stock_detail_screen.dart';
 
@@ -92,14 +93,14 @@ class _WatchlistTabState extends State<WatchlistTab> {
                 itemBuilder: (context, index) {
                   final ticker = watchlist[index];
                   final quote = provider.getQuote(ticker);
-                  final sec = MarketDataService.securities.firstWhere(
+                  final sec = CompanyRepository.instance.findCompany(ticker) ?? MarketDataService.securities.firstWhere(
                     (s) => s.ticker == ticker,
                     orElse: () => StockSecurity(
                       ticker: ticker,
                       name: quote.name.isNotEmpty ? quote.name : ticker,
-                      country: 'US',
-                      countryName: 'US',
-                      exchange: 'NYSE',
+                      country: ticker.contains('.KS') || ticker.contains('.KQ') ? 'KR' : 'US',
+                      countryName: ticker.contains('.KS') || ticker.contains('.KQ') ? 'South Korea' : 'United States',
+                      exchange: ticker.contains('.KS') ? 'KOSPI' : (ticker.contains('.KQ') ? 'KOSDAQ' : 'NASDAQ'),
                       sector: 'General',
                       marketCapCategory: 'Large Cap',
                       currency: quote.currency,
@@ -140,7 +141,7 @@ class _WatchlistTabState extends State<WatchlistTab> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  sec.name,
+                                  sec.localName ?? sec.name,
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
@@ -159,7 +160,9 @@ class _WatchlistTabState extends State<WatchlistTab> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                hasPrice ? '$formattedPrice ${quote.currency}' : '—',
+                                hasPrice
+                                    ? '${quote.currency == "GBP" ? "£" : (quote.currency == "EUR" ? "€" : (quote.currency == "USD" ? "\$" : (quote.currency == "JPY" ? "¥" : "₩")))}$formattedPrice'
+                                    : '—',
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
